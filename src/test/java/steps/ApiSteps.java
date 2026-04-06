@@ -1,63 +1,69 @@
 package steps;
 
 import client.APIClient;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import io.cucumber.java.en.And;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.When;
 import io.cucumber.java.en.Then;
 import io.restassured.response.Response;
 import org.assertj.core.api.Assert;
 import org.assertj.core.api.Assertions;
+import org.db.apicore.json.JsonUtility;
 import utils.JsonFileLoader;
 
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+
 public class ApiSteps {
-    private static final String NAME_PATTERN = "\"name\":\"%s\"";
-    private static final String STATUS_PATTERN = "\"status\":\"%s\"";
-    private static final String ID_PATTERN = "\"id\":%s";
 
-    private String currentResponse;
-    private final APIClient apiClient = new APIClient();
-    private String requestPayload;
+    private final APIClient client = new APIClient();
 
-    @Given("I pass a payload with json from path {string}")
-    public void i_pass_a_payload_with_json_from_path(String jsonName) {
-        // Write code here that turns the phrase above into concrete actions
-        requestPayload = JsonFileLoader.load(jsonName+".json");
+    @Given("I call {string} endpoint with http method {string}")
+    public void iCallEndpointWithMethod(String endpointName, String method) {
+        client.withEndpoint(endpointName)
+                .withMethod(method);
     }
-    @Given("I update the pet payload with status {string}")
-    public void updatePetPayloadStatus(String status) {
-        requestPayload = requestPayload.replaceAll(
-                "\"status\":\\s*\"[^\"]+\"",
-                String.format(STATUS_PATTERN, status)
+
+    @Given("I set path parameter {string} to {string}")
+    public void iSetPathParam(String name, String value) {
+        client.withPathParam(name, value);
+    }
+
+    @Given("I set query parameter {string} to {string}")
+    public void iSetQueryParam(String name, String value) {
+        client.withQueryParam(name, value);
+    }
+
+    @Given("I load body from file {string}")
+    public void iLoadBodyFromFile(String fileName) {
+        client.withJsonBodyFromFile(fileName, null);
+    }
+
+    @When("I execute the request")
+    public void iExecuteTheRequest() {
+        client.execute();
+    }
+
+    @Then("the status code should be {int}")
+    public void theStatusCodeShouldBe(int expected) {
+        org.junit.jupiter.api.Assertions.assertEquals(expected, client.getStatusCode());
+    }
+
+    @Then("the response body should contain {string}")
+    public void bodyShouldContain(String expected) {
+        org.junit.jupiter.api.Assertions.assertTrue(
+                client.getBody().contains(expected),
+                "Body did not contain: " + expected
         );
     }
 
-    @When("I send GET request to {string}")
-    public void sendGetRequest(String endpoint) {
-        currentResponse = apiClient.get(endpoint);
-    }
-
-    @When("I send POST request to {string}")
-    public void sendPostRequest(String endpoint) {
-        currentResponse = apiClient.post(endpoint, "createPet.json", null);
-    }
-
-    @When("I send POST request to {string} with body:")
-    public void sendPostRequestWithBody(String endpoint, String body) {
-        currentResponse = apiClient.post(endpoint, body, null);
-    }
-
-    @When("I send PUT request to {string}")
-    public void sendPutRequest(String endpoint) {
-        currentResponse = String.valueOf(apiClient.put(endpoint, requestPayload, null));
-    }
-
-    @When("I send DELETE request to {string}")
-    public void sendDeleteRequest(String endpoint) {
-        currentResponse = String.valueOf(apiClient.delete(endpoint));
-    }
-    @Then("the response should contain pet name {string}")
-    public void the_response_should_contain_pet_name(String string) {
-        // Write code here that turns the phrase above into concrete actions
-        currentResponse.contains(string);
+    @Given("I update the payload {string} for field {string} with value {string}")
+    public void iUpdateThepayloadPetPostPetForFieldQuantityWithValue(String fileName,String fieldPath, String value) {
+        Map<String, String> updates = new HashMap<>();
+        updates.put(fieldPath, value);
+        client.withJsonBodyFromFile(fileName,updates);
     }
 }
